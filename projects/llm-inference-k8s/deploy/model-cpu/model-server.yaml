@@ -1,0 +1,85 @@
+# CPU model server: llama.cpp serving a small quantized model.
+# Small enough for a laptop kind cluster; same OpenAI-compatible API as the GPU path.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: model-server
+  labels:
+    app.kubernetes.io/name: model-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: model-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: model-server
+    spec:
+      initContainers:
+        - name: fetch-model
+          image: curlimages/curl:8.10.1
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              if [ ! -s /models/model.gguf ]; then
+                curl -fL --retry 3 -o /models/model.gguf.part "$MODEL_URL"
+                mv /models/model.gguf.part /models/model.gguf
+              fi
+          env:
+            - name: MODEL_URL
+              value: https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      containers:
+        - name: llama
+          image: ghcr.io/ggml-org/llama.cpp:server
+          args:
+            - --model=/models/model.gguf
+            - --host=0.0.0.0
+            - --port=8080
+            - --ctx-size=4096
+            - --parallel=2
+            - --metrics
+          ports:
+            - name: http
+              containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: "1"
+              memory: 1Gi
+            limits:
+              memory: 2Gi
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: models
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: model-server
+  labels:
+    app.kubernetes.io/name: model-server
+spec:
+  selector:
+    app.kubernetes.io/name: model-server
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

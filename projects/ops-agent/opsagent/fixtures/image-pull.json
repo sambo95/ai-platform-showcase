@@ -1,0 +1,9 @@
+{
+  "pods": "NAME                         READY   STATUS             RESTARTS   AGE   IP           NODE\nrag-api-58c6d7f9b4-k2m8x     1/1     Running            0          2d    10.244.1.5   cpu-node-1\nrag-api-6b8f9d7c5d-q7wvn     0/1     ImagePullBackOff   0          14m   10.244.1.9   cpu-node-1\nqdrant-0                     1/1     Running            0          9d    10.244.1.3   cpu-node-1",
+  "describe": {
+    "rag-api-6b8f9d7c5d-q7wvn": "Name:         rag-api-6b8f9d7c5d-q7wvn\nNamespace:    rag\nContainers:\n  api:\n    Image:      ghcr.io/example/rag-api:v1.4.0-rc1\n    State:          Waiting\n      Reason:       ImagePullBackOff\nEvents:\n  Warning  Failed   13m (x4 over 14m)  kubelet  Failed to pull image \"ghcr.io/example/rag-api:v1.4.0-rc1\": rpc error: code = NotFound desc = failed to resolve reference: ghcr.io/example/rag-api:v1.4.0-rc1: not found\n  Normal   BackOff  4m (x42 over 14m)  kubelet  Back-off pulling image \"ghcr.io/example/rag-api:v1.4.0-rc1\""
+  },
+  "events": "LAST SEEN   TYPE      REASON    OBJECT                         MESSAGE\n14m         Normal    Pulling   pod/rag-api-6b8f9d7c5d-q7wvn   Pulling image \"ghcr.io/example/rag-api:v1.4.0-rc1\"\n13m         Warning   Failed    pod/rag-api-6b8f9d7c5d-q7wvn   Failed to pull image: not found\n4m          Normal    BackOff   pod/rag-api-6b8f9d7c5d-q7wvn   Back-off pulling image",
+  "logs": {},
+  "prometheus": {}
+}

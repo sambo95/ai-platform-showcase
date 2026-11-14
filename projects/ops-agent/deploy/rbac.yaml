@@ -1,0 +1,35 @@
+# Least-privilege identity for running the agent in-cluster.
+# The agent's tools are read-only by construction; this makes the API server
+# enforce the same thing, so a bug or prompt injection cannot become a write.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ops
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ops-agent
+  namespace: ops
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ops-agent-readonly
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "events"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ops-agent-readonly
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ops-agent-readonly
+subjects:
+  - kind: ServiceAccount
+    name: ops-agent
+    namespace: ops

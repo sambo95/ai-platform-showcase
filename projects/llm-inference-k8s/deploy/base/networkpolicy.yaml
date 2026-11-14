@@ -1,0 +1,17 @@
+# The model server has no auth of its own, so only the gateway may reach it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: model-server-from-gateway-only
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: model-server
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: llm-gateway
+      ports:
+        - port: 8080

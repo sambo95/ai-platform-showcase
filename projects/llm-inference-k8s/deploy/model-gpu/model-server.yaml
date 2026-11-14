@@ -1,0 +1,99 @@
+# GPU model server: vLLM with continuous batching on one GPU per replica.
+# Requires the NVIDIA device plugin (or GPU Operator) on the cluster.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: model-server
+  labels:
+    app.kubernetes.io/name: model-server
+spec:
+  replicas: 1
+  strategy:
+    # A surge pod would need a spare GPU; recreate instead of waiting on one.
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: model-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: model-server
+    spec:
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest
+          args:
+            - --model=Qwen/Qwen2.5-7B-Instruct
+            - --port=8080
+            - --max-model-len=8192
+            - --gpu-memory-utilization=0.90
+            - --enable-auto-tool-choice
+            - --tool-call-parser=hermes
+          env:
+            - name: HF_HOME
+              value: /cache/huggingface
+          ports:
+            - name: http
+              containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            # Weights download plus load can take 10+ minutes on a cold node.
+            failureThreshold: 90
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: "4"
+              memory: 24Gi
+              nvidia.com/gpu: 1
+            limits:
+              memory: 24Gi
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: cache
+              mountPath: /cache
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: cache
+          persistentVolumeClaim:
+            claimName: model-cache
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 4Gi
+---
+# Persisting the weights turns a multi-minute cold start into a load from disk.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-cache
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 50Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: model-server
+  labels:
+    app.kubernetes.io/name: model-server
+spec:
+  selector:
+    app.kubernetes.io/name: model-server
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

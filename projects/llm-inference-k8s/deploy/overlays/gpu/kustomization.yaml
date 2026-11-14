@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: llm
+resources:
+  - namespace.yaml
+  - ../../base
+  - ../../model-gpu
+  - autoscaling.yaml
+images:
+  - name: llm-gateway
+    # CI publishes this image.
+    newName: ghcr.io/sambo95/llm-gateway
+    newTag: latest

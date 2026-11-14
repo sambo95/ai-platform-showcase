@@ -1,0 +1,69 @@
+{
+  "title": "LLM Gateway",
+  "uid": "llm-gateway",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-30m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Time to first token (p50 / p95)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "p50 {{model}}",
+          "expr": "histogram_quantile(0.5, sum by (le, model) (rate(gateway_time_to_first_token_seconds_bucket[5m])))"
+        },
+        {
+          "refId": "B",
+          "legendFormat": "p95 {{model}}",
+          "expr": "histogram_quantile(0.95, sum by (le, model) (rate(gateway_time_to_first_token_seconds_bucket[5m])))"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Completion tokens per second",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "{{model}}",
+          "expr": "sum by (model) (rate(gateway_tokens_total{kind=\"completion\"}[1m]))"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "In-flight requests (autoscaling signal)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        { "refId": "A", "legendFormat": "in flight", "expr": "sum(gateway_inflight_requests)" }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Requests per second by status",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "{{status}}",
+          "expr": "sum by (status) (rate(gateway_requests_total[1m]))"
+        },
+        {
+          "refId": "B",
+          "legendFormat": "rejected: {{reason}}",
+          "expr": "sum by (reason) (rate(gateway_rejected_total[1m]))"
+        }
+      ]
+    }
+  ]
+}

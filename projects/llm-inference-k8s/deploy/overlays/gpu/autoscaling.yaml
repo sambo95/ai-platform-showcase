@@ -1,0 +1,48 @@
+# Requires KEDA and a Prometheus that scrapes the gateway (see deploy/observability).
+#
+# GPU pods are scaled on in-flight requests rather than CPU or GPU utilization:
+# a GPU running one request and one running a full batch both report ~100% busy,
+# so utilization says nothing about headroom. Queue depth does.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: model-server
+spec:
+  scaleTargetRef:
+    name: model-server
+  minReplicaCount: 1
+  maxReplicaCount: 4
+  # GPU nodes are slow to provision and expensive to thrash: scale down slowly.
+  cooldownPeriod: 600
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 600
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus-operated.monitoring.svc:9090
+        query: sum(gateway_inflight_requests{namespace="llm"})
+        # Target in-flight requests per model-server replica.
+        threshold: "8"
+---
+# The gateway is cheap and CPU-bound, so plain CPU-based HPA is enough.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: llm-gateway
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: llm-gateway
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

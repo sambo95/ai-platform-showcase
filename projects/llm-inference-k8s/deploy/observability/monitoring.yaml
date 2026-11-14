@@ -1,0 +1,56 @@
+# Requires the Prometheus Operator CRDs (kube-prometheus-stack).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: llm-gateway
+  labels:
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: llm-gateway
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: llm-gateway-slo
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: llm-gateway.slo
+      rules:
+        - record: llm:ttft_seconds:p95
+          expr: |
+            histogram_quantile(0.95,
+              sum by (le, model) (rate(gateway_time_to_first_token_seconds_bucket[5m])))
+        - record: llm:completion_tokens:rate1m
+          expr: sum by (model) (rate(gateway_tokens_total{kind="completion"}[1m]))
+        - alert: LLMTimeToFirstTokenHigh
+          expr: llm:ttft_seconds:p95 > 2
+          for: 10m
+          labels:
+            severity: page
+          annotations:
+            summary: p95 time to first token above 2s for {{ $labels.model }}
+            runbook: Check gateway_inflight_requests and model-server replica count.
+        - alert: LLMErrorRateHigh
+          expr: |
+            sum(rate(gateway_requests_total{status=~"5.."}[5m]))
+              / sum(rate(gateway_requests_total[5m])) > 0.02
+          for: 5m
+          labels:
+            severity: page
+          annotations:
+            summary: More than 2% of inference requests are failing
+        - alert: LLMSheddingLoad
+          expr: sum(rate(gateway_rejected_total{reason="overloaded"}[5m])) > 0
+          for: 10m
+          labels:
+            severity: ticket
+          annotations:
+            summary: Gateway has been shedding load for 10 minutes; capacity is short

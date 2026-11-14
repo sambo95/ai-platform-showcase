@@ -1,0 +1,12 @@
+{
+  "pods": "NAME                            READY   STATUS    RESTARTS   AGE   IP            NODE\nllm-gateway-7c9d8b6f5-2xkqp     1/1     Running   0          3h    10.244.1.7    cpu-node-1\nmodel-server-6d7f8c9b5-aaaaa    1/1     Running   0          3h    10.244.2.4    gpu-node-1\nmodel-server-6d7f8c9b5-bbbbb    0/1     Pending   0          22m   <none>        <none>",
+  "describe": {
+    "model-server-6d7f8c9b5-bbbbb": "Name:         model-server-6d7f8c9b5-bbbbb\nNamespace:    llm\nStatus:       Pending\nContainers:\n  vllm:\n    Image:      vllm/vllm-openai:latest\n    Limits:\n      nvidia.com/gpu:  1\nTolerations:  nvidia.com/gpu:NoSchedule op=Exists\nEvents:\n  Warning  FailedScheduling  2m (x5 over 22m)  default-scheduler  0/3 nodes are available: 1 Insufficient nvidia.com/gpu, 2 node(s) didn't match Pod's node affinity/selector. preemption: 0/3 nodes are available: 3 No preemption victims found for incoming pod."
+  },
+  "events": "LAST SEEN   TYPE      REASON              OBJECT                              MESSAGE\n22m         Normal    SuccessfulRescale   scaledobject/model-server           New size: 2; reason: external metric s0-prometheus above target\n2m          Warning   FailedScheduling    pod/model-server-6d7f8c9b5-bbbbb    0/3 nodes are available: 1 Insufficient nvidia.com/gpu",
+  "logs": {},
+  "prometheus": {
+    "gateway_inflight_requests": [{"metric": {}, "value": [1731600000, "19"]}],
+    "gateway_rejected_total": [{"metric": {"reason": "overloaded"}, "value": [1731600000, "3.2"]}]
+  }
+}

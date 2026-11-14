@@ -1,0 +1,21 @@
+# GitOps: Argo CD keeps the cluster in sync with deploy/overlays/gpu on main.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: llm-inference
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sambo95/ai-platform-showcase.git
+    targetRevision: main
+    path: projects/llm-inference-k8s/deploy/overlays/gpu
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: llm
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

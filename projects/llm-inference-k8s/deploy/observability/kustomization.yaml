@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: llm
+resources:
+  - monitoring.yaml
+configMapGenerator:
+  # Picked up by the Grafana sidecar that ships with kube-prometheus-stack.
+  - name: llm-gateway-dashboard
+    files:
+      - llm-gateway.json=dashboard.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"

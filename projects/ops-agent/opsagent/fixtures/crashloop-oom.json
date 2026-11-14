@@ -1,0 +1,17 @@
+{
+  "pods": "NAME                            READY   STATUS             RESTARTS        AGE   IP           NODE\nllm-gateway-7c9d8b6f5-2xkqp     0/1     Running            0               41m   10.244.0.7   llm-control-plane\nmodel-server-5f6b7c8d9-hv4zt    0/1     CrashLoopBackOff   9 (2m14s ago)   38m   10.244.0.9   llm-control-plane",
+  "describe": {
+    "model-server-5f6b7c8d9-hv4zt": "Name:         model-server-5f6b7c8d9-hv4zt\nNamespace:    llm\nContainers:\n  llama:\n    Image:      ghcr.io/ggml-org/llama.cpp:server\n    Args:       --model=/models/model.gguf --ctx-size=32768 --parallel=8 --metrics\n    State:          Waiting\n      Reason:       CrashLoopBackOff\n    Last State:     Terminated\n      Reason:       OOMKilled\n      Exit Code:    137\n    Restart Count:  9\n    Limits:\n      memory:  2Gi\n    Requests:\n      cpu:     1\n      memory:  1Gi\nEvents:\n  Warning  BackOff  2m (x41 over 36m)  kubelet  Back-off restarting failed container llama",
+    "llm-gateway-7c9d8b6f5-2xkqp": "Name:         llm-gateway-7c9d8b6f5-2xkqp\nNamespace:    llm\nContainers:\n  gateway:\n    State:          Running\n    Ready:          False\n    Restart Count:  0\nEvents:\n  Warning  Unhealthy  30s (x480 over 40m)  kubelet  Readiness probe failed: HTTP probe failed with statuscode: 503"
+  },
+  "events": "LAST SEEN   TYPE      REASON      OBJECT                              MESSAGE\n36m         Normal    Pulled      pod/model-server-5f6b7c8d9-hv4zt    Container image already present on machine\n2m          Warning   BackOff     pod/model-server-5f6b7c8d9-hv4zt    Back-off restarting failed container llama\n30s         Warning   Unhealthy   pod/llm-gateway-7c9d8b6f5-2xkqp     Readiness probe failed: HTTP probe failed with statuscode: 503",
+  "logs": {
+    "model-server-5f6b7c8d9-hv4zt:previous": "main: loading model\nllama_model_loader: loaded meta data with 26 key-value pairs\nllama_new_context_with_model: n_ctx = 32768\nllama_new_context_with_model: n_seq_max = 8\nllama_kv_cache_init: allocating KV cache",
+    "llm-gateway-7c9d8b6f5-2xkqp": "INFO: 10.244.0.1 - \"GET /readyz HTTP/1.1\" 503 Service Unavailable"
+  },
+  "prometheus": {
+    "container_memory_working_set_bytes": [
+      {"metric": {"pod": "model-server-5f6b7c8d9-hv4zt", "container": "llama"}, "value": [1731600000, "2141192192"]}
+    ]
+  }
+}
