@@ -74,3 +74,21 @@ API key, never the key itself.
 - `vllm/vllm-openai:latest` should be pinned to a digest before real use.
 - The Terraform uses one permissive in-VCN security list for readability; split
   it into NSGs for production.
+
+## Measured results
+
+Local kind cluster, llama.cpp with a 0.5B Q4 model and 2 parallel slots, CPU only (Intel(R) Core(TM) Ultra 9 185H).
+20 requests per run, 128 max tokens, via `loadtest/loadtest.py`.
+
+| Concurrency | TTFT p50 | TTFT p95 | Total p50 | Throughput |
+| --- | --- | --- | --- | --- |
+| 2 (matches the 2 model slots) | 0.03s | 0.03s | 1.18s | 142.1 tok/s |
+| 4 (2 requests always queued) | 1.24s | 1.60s | 2.49s | 136.6 tok/s |
+
+Doubling concurrency past the slot count added about 1.2s of queueing to every
+request and no throughput. The model server was equally busy in both runs, so
+utilization would not have shown the problem; in-flight requests did. That is
+the signal the GPU overlay autoscales on.
+
+The load test repeats one prompt, so prompt caching makes TTFT at concurrency 2
+optimistic. A single uncached request measured about 0.23s of prompt processing.
