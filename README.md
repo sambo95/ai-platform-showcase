@@ -67,5 +67,6 @@ Delivery is GitOps: Argo CD watches `deploy/overlays/gpu` on `main`
 What has and has not been exercised, so nothing here is claimed beyond its evidence:
 
 - **Verified locally**: all unit tests, ruff, the retrieval eval, YAML/JSON parsing of every manifest, and a smoke test of the three services talking over HTTP (gateway, RAG API, agent CLI, load test) with a scripted stand-in for the model.
-- **Verified by CI on first push, not before**: Kustomize rendering, Kubernetes schema validation, `terraform validate`, Docker image builds.
-- **Not yet run end to end**: the kind deployment, the GPU overlay on a real GPU cluster, and `terraform apply` against OCI.
+- **Verified by CI**: Kustomize rendering, Kubernetes schema validation, `terraform validate`, Docker image builds.
+- **Verified on a local kind cluster**: gateway and CPU model server deployed, chat completion served end to end.
+- **Not yet run**: the GPU overlay on a real GPU cluster, and `terraform apply` against OCI.

@@ -37,11 +37,16 @@ spec:
         - name: llama
           image: ghcr.io/ggml-org/llama.cpp:server
           args:
-            - --model=/models/model.gguf
-            - --host=0.0.0.0
-            - --port=8080
-            - --ctx-size=4096
-            - --parallel=2
+            - --model
+            - "/models/model.gguf"
+            - --host
+            - "0.0.0.0"
+            - --port
+            - "8080"
+            - --ctx-size
+            - "4096"
+            - --parallel
+            - "2"
             - --metrics
           ports:
             - name: http
