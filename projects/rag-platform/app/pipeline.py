@@ -44,7 +44,10 @@ def build_prompt(question: str, hits: list[Hit]) -> list[dict]:
     )
     return [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {question}\n\nAnswer in full sentences:"},
+        {
+            "role": "user",
+            "content": f"Context:\n{context}\n\nQuestion: {question}\n\nAnswer in full sentences:",
+        },
     ]
 
 
