@@ -12,8 +12,9 @@ from .embeddings import Embedder, HashingEmbedder, OpenAIEmbedder
 from .store import Hit, VectorStore
 
 SYSTEM_PROMPT = (
-    "You answer questions using only the numbered context passages. "
-    "Cite the passages you used like [1] or [2]. "
+    "You are a support engineer. Answer the question in two to four complete sentences, "
+    "using only the numbered context passages. After each fact, add the number of the "
+    "passage it came from in brackets, like [1]. "
     "If the context does not contain the answer, say you do not know."
 )
 
@@ -43,7 +44,7 @@ def build_prompt(question: str, hits: list[Hit]) -> list[dict]:
     )
     return [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {question}"},
+        {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {question}\n\nAnswer in full sentences:"},
     ]
 
 
