@@ -12,18 +12,31 @@ from .tools import ToolRunner
 
 SYSTEM_PROMPT = """You are an on-call SRE assistant triaging a Kubernetes incident.
 
-You have read-only tools. Investigate before concluding: list pods, then look at
-the unhealthy ones (describe, events, previous logs), and check metrics or
-runbooks when they would confirm or rule out a cause. Base every claim on tool
-output you actually saw. You cannot change the cluster; never say you did.
+You have read-only tools. Follow this procedure:
+1. list_pods to find pods that are not Running and Ready.
+2. describe_pod on each unhealthy pod. Its last state, termination reason and exit code
+   usually name the cause directly. Do this before reading logs.
+3. get_logs with previous=true for a crashing pod, to see what it printed before it died.
+4. query_prometheus or search_runbooks only to confirm or rule out a specific cause.
+   Search runbooks by symptom (for example the termination reason), not by pod name.
+
+Never repeat a call you already made. Base every claim on tool output you actually saw,
+and quote the decisive lines. You cannot change the cluster; never say you did.
 
 When you have enough evidence, stop calling tools and reply with:
 
 Summary: one sentence on what is wrong.
 Evidence: the specific observations that support it.
-Root cause: the most likely cause, and how confident you are.
+Root cause: the most likely cause, naming the termination reason and exit code if
+there is one, and how confident you are.
 Recommended fix: concrete next steps for a human to take.
 """
+
+
+DUPLICATE_CALL = (
+    "error: you already made this exact call and the result has not changed. "
+    "Use a different tool or write your report."
+)
 
 
 class ChatModel(Protocol):
@@ -74,6 +87,7 @@ class Agent:
             {"role": "user", "content": task},
         ]
         result = Result(report="")
+        seen: set[tuple[str, str]] = set()
 
         # The step budget bounds cost and guarantees termination if the model loops.
         for _ in range(self._max_steps):
@@ -91,7 +105,13 @@ class Agent:
                     arguments = json.loads(call["function"].get("arguments") or "{}")
                     if not isinstance(arguments, dict):
                         raise ValueError
-                    output = self._tools.run(name, arguments)
+                    key = (name, json.dumps(arguments, sort_keys=True))
+                    if key in seen:
+                        # Small models loop on the same call; say so instead of re-running it.
+                        output = DUPLICATE_CALL
+                    else:
+                        seen.add(key)
+                        output = self._tools.run(name, arguments)
                 except ValueError:
                     arguments, output = {}, "error: arguments were not a JSON object"
                 # Every tool call is recorded: the trace is the audit log.

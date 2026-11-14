@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 
 import httpx
@@ -29,13 +30,15 @@ POD = {"type": "string", "description": "Exact pod name from list_pods"}
 TOOL_SPECS = [
     _tool(
         "list_pods",
-        "List pods with status and restart counts.",
+        "List pods with status and restart counts. Start here.",
         {"namespace": NAMESPACE},
         ["namespace"],
     ),
     _tool(
         "describe_pod",
-        "Show a pod's containers, last state, limits and events.",
+        "Show why a pod is unhealthy: container state, last termination reason (for example "
+        "OOMKilled) and exit code, resource limits and pod events. Call this for every pod that "
+        "is not Running and Ready.",
         {"namespace": NAMESPACE, "pod": POD},
         ["namespace", "pod"],
     ),
@@ -61,13 +64,15 @@ TOOL_SPECS = [
     ),
     _tool(
         "query_prometheus",
-        "Run an instant PromQL query.",
+        "Run an instant PromQL query, for example "
+        'container_memory_working_set_bytes{pod="POD_NAME"}.',
         {"query": {"type": "string", "description": "PromQL expression"}},
         ["query"],
     ),
     _tool(
         "search_runbooks",
-        "Search the team's runbooks for known fixes.",
+        "Search the team's runbooks for known fixes. Ask about the symptom you observed (status, "
+        "termination reason, exit code, error text), not the pod name.",
         {"question": {"type": "string", "description": "What you want to know"}},
         ["question"],
     ),
@@ -83,6 +88,33 @@ def _name(args: dict, key: str) -> str:
     if not isinstance(value, str) or not K8S_NAME.match(value):
         raise ToolError(f"{key} must be a valid Kubernetes name")
     return value
+
+
+def _format_prometheus(query: str, raw: str) -> str:
+    """Turn Prometheus' [timestamp, value] JSON into one readable line per series.
+
+    Models misread the raw form: the timestamp looks like the measurement.
+    """
+    try:
+        series = json.loads(raw)
+    except ValueError:
+        return raw
+    if not isinstance(series, list):
+        return raw
+    if not series:
+        return "no data: the query matched no series"
+    lines = []
+    for item in series[:20]:
+        labels = ", ".join(f'{k}="{v}"' for k, v in sorted(item.get("metric", {}).items()))
+        value = str(item.get("value", [None, "?"])[1])
+        human = ""
+        if "bytes" in query:
+            try:
+                human = f" ({float(value) / 2**30:.2f} GiB)"
+            except ValueError:
+                pass
+        lines.append(f"{{{labels}}} = {value}{human}")
+    return "\n".join(lines)
 
 
 class ToolRunner:
@@ -125,7 +157,7 @@ class ToolRunner:
             query = args.get("query")
             if not isinstance(query, str) or not query.strip() or len(query) > 1000:
                 raise ToolError("query must be a non-empty PromQL string under 1000 chars")
-            return backend.query_prometheus(query)
+            return _format_prometheus(query, backend.query_prometheus(query))
         if name == "search_runbooks" and self._runbook_url:
             return self._search_runbooks(args.get("question"))
         raise ToolError(f"unknown tool {name!r}")

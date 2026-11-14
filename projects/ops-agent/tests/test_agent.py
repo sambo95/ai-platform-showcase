@@ -3,7 +3,7 @@ import json
 import pytest
 
 from opsagent.__main__ import main
-from opsagent.agent import Agent
+from opsagent.agent import DUPLICATE_CALL, Agent
 from opsagent.backends import FixtureBackend, KubectlBackend
 from opsagent.tools import ToolRunner
 
@@ -151,3 +151,20 @@ def test_cli_rejects_unknown_scenario(capsys):
     with pytest.raises(SystemExit):
         main(["triage", "--backend", "fixture", "--scenario", "nope"])
     assert "available:" in capsys.readouterr().err
+
+
+def test_repeated_identical_call_is_not_rerun():
+    same = {"content": None, "tool_calls": [call("list_pods", namespace="llm")]}
+    agent, _ = make_agent([same, same, {"content": "done"}])
+    steps = agent.run("triage").steps
+    assert "CrashLoopBackOff" in steps[0].output
+    assert steps[1].output == DUPLICATE_CALL
+
+
+def test_prometheus_results_are_made_readable():
+    tools = ToolRunner(FixtureBackend("crashloop-oom"))
+    output = tools.run("query_prometheus", {"query": "container_memory_working_set_bytes"})
+    assert output == (
+        '{container="llama", pod="model-server-5f6b7c8d9-hv4zt"} = 2141192192 (1.99 GiB)'
+    )
+    assert tools.run("query_prometheus", {"query": "up"}).startswith("no data")

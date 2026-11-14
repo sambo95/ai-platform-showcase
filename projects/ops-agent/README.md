@@ -74,12 +74,30 @@ back, which is where agent bugs actually live.
 
 ## Known limits
 
-- Report quality depends on the model. Small local models (such as the 0.5B
-  model in the `llm-inference-k8s` local overlay) do not call tools reliably;
-  use the GPU overlay's vLLM deployment or a hosted model.
+- Report quality depends on the model. See "Measured behavior" below for what a 3B
+  model on CPU gets right and wrong; use the GPU overlay's vLLM deployment or a hosted
+  model when the diagnosis has to be dependable.
 - Tool output is untrusted text that reaches the model. Read-only tools and
   RBAC limit what an injected instruction in a log line could do, but the
   report itself could still be influenced. Treat it as a draft for a human.
 - Tests verify the loop and guardrails, not diagnostic accuracy. An eval that
   scores reports against the known root cause of each fixture is the next step.
 - Instant Prometheus queries only; no range queries.
+
+## Measured behavior
+
+Run against the `crashloop-oom` fixture with Qwen2.5-3B-Instruct (Q4) on CPU, served by
+the `llm-inference-k8s` local overlay. One run after each change to the tooling, so this
+is indicative, not a benchmark:
+
+| Run | Change | Result |
+| --- | --- | --- |
+| 1 | Baseline | Wrong. Never called `describe_pod`, repeated a log call, sent a pod name as PromQL. Blamed a "configuration issue". |
+| 2 | Step-by-step procedure in the prompt, tool descriptions that say what each tool reveals, duplicate-call guard | Right investigation, wrong conclusion. Read the Prometheus timestamp as the memory value and advised lowering the limit. |
+| 3 | Prometheus results formatted as one readable line per series | Correct: OOMKilled, exit code 137, 1.99 GiB working set against a 2Gi limit, raise the limit. |
+
+Run 3 still had flaws: it repeated one call (caught by the guard), queried a metric that
+does not exist, padded the report with an invented Deployment manifest, and missed the
+cheaper fix of lowering `--ctx-size` and `--parallel`. The lesson is that tool output
+shaping moved the result more than prompt wording did, and that a 3B model's report is a
+draft for a human, not a verdict.

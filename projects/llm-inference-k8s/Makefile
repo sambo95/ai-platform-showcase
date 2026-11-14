@@ -11,7 +11,7 @@ up:              ## Create a kind cluster and deploy gateway + CPU model server
 	docker build -t $(IMAGE) gateway
 	kind load docker-image $(IMAGE) --name $(CLUSTER)
 	kubectl apply -k deploy/overlays/local
-	kubectl -n llm rollout status deploy/model-server --timeout=10m
+	kubectl -n llm rollout status deploy/model-server --timeout=20m
 	kubectl -n llm rollout status deploy/llm-gateway --timeout=3m
 
 smoke:           ## One chat completion through the gateway

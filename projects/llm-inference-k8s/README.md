@@ -21,7 +21,7 @@ flowchart LR
 | --- | --- |
 | `gateway/` | FastAPI gateway: API-key auth, per-tenant token bucket, load shedding, streaming pass-through, Prometheus metrics. Tested with a mocked upstream. |
 | `deploy/base` | Hardened gateway Deployment (non-root, read-only root FS, PDB, topology spread) and a NetworkPolicy that isolates the unauthenticated model server. |
-| `deploy/model-cpu` | llama.cpp serving a 0.5B quantized model. Runs on a laptop. |
+| `deploy/model-cpu` | llama.cpp serving a 3B quantized model with tool calling enabled. Runs on a laptop. |
 | `deploy/model-gpu` | vLLM on one GPU per replica, with a PVC weight cache and tool calling enabled. |
 | `deploy/overlays` | `local` (kind) and `gpu` (KEDA + HPA) environments from the same base. |
 | `deploy/observability` | ServiceMonitor, SLO alert rules, Grafana dashboard. |
@@ -34,7 +34,7 @@ flowchart LR
 Needs Docker, kind, kubectl. No GPU and no cloud account.
 
 ```bash
-make up          # kind cluster, gateway, CPU model server (downloads ~400 MB of weights)
+make up          # kind cluster, gateway, CPU model server (downloads ~2.1 GB of weights)
 make smoke       # one chat completion
 make loadtest    # TTFT p50/p95 and tokens/s at concurrency 4
 make down
@@ -72,12 +72,14 @@ API key, never the key itself.
   shared store such as Redis.
 - The `local` overlay has no autoscaling; kind has no metrics pipeline by default.
 - `vllm/vllm-openai:latest` should be pinned to a digest before real use.
+- The local overlay downloads Qwen2.5-3B-Instruct, which is under the non-commercial Qwen
+  research license. Swap `MODEL_URL` for an Apache-2.0 model (such as the 7B) for other use.
 - The Terraform uses one permissive in-VCN security list for readability; split
   it into NSGs for production.
 
 ## Measured results
 
-Local kind cluster, llama.cpp with a 0.5B Q4 model and 2 parallel slots, CPU only (Intel(R) Core(TM) Ultra 9 185H).
+Local kind cluster, llama.cpp with a 0.5B Q4 model (the default at the time; now 3B) and 2 parallel slots, CPU only (Intel(R) Core(TM) Ultra 9 185H).
 20 requests per run, 128 max tokens, via `loadtest/loadtest.py`.
 
 | Concurrency | TTFT p50 | TTFT p95 | Total p50 | Throughput |
